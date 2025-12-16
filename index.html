@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Fabric Architect Lab: CU-Aware Pipeline Optimization</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #0078d4;
+            --primary-dark: #005a9e;
+            --secondary-color: #00b294;
+            --accent-color: #ffb900;
+            --danger-color: #e81123;
+            --success-color: #107c10;
+            --light-bg: #f5f9fc;
+            --card-bg: #ffffff;
+            --border-color: #e1e8f0;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --code-bg: #1e1e1e;
+            --warning-bg: #fff8e1;
+            --tip-bg: #e8f5e9;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--light-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header Styles */
+        header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+            color: white;
+            padding: 50px 40px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 88, 212, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header-pattern {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 100%;
+            opacity: 0.1;
+            z-index: 1;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .lab-badge {
+            background: var(--accent-color);
+            color: #000;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        .lab-subtitle {
+            font-size: 1.4rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+            max-width: 900px;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .metadata-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .metadata-content h3 {
+            font-size: 1rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metadata-content p {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Main Content Sections */
+        .content-section {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        .section-title {
+            color: var(--primary-dark);
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--border-color);
+        }
+
+        .section-title i {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 10px;
+            color: var(--primary-color);
+        }
+
+        /* Objectives Section */
+        .objectives-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .objective-card {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            border-left: 4px solid var(--secondary-color);
+            transition: transform 0.3s ease;
+        }
+
+        .objective-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .objective-card h3 {
+            color: var(--primary-dark);
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Prerequisites Section */
+        .prerequisites-list {
+            list-style: none;
+            padding-left: 0;
+            margin-top: 20px;
+        }
+
+        .prerequisites-list li {
+            padding: 12px 0;
+            padding-left: 40px;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .prerequisites-list li:last-child {
+            border-bottom: none;
+        }
+
+        .prerequisites-list li:before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 25px;
+            height: 25px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Scenario Section */
+        .scenario-box {
+            background: #f0f7ff;
+            padding: 30px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .scenario-box h3 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .challenge-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 20px 0;
+        }
+
+        .challenge-list li {
+            padding: 10px 0;
+            padding-left: 35px;
+            position: relative;
+        }
+
+        .challenge-list li:before {
+            content: '⚠';
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 25px;
+            height: 25px;
+            background: var(--danger-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        /* Architecture Diagram */
+        .architecture-section {
+            background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+        }
+
+        .architecture-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .architecture-header h2 {
+            color: white;
+            font-size: 1.8rem;
+        }
+
+        .phase-tag {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .architecture-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .architecture-card h3 {
+            color: #bbdefb;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .architecture-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .architecture-card li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .architecture-card li:before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+
+        /* Exercises */
+        .exercises-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .exercise-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color);
+        }
+
+        .exercise-header {
+            background: linear-gradient(to right, #f0f7ff, #e3f2fd);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .exercise-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .exercise-number {
+            background: var(--primary-color);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .exercise-header h3 {
+            color: var(--primary-dark);
+            font-size: 1.3rem;
+        }
+
+        .exercise-time {
+            background: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: var(--primary-dark);
+            border: 1px solid var(--border-color);
+        }
+
+        .exercise-content {
+            padding: 25px;
+        }
+
+        .task-section, .steps-section, .expected-section, .reflection-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section h4, .steps-section h4, .expected-section h4, .reflection-section h4 {
+            color: var(--primary-dark);
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-section p, .reflection-section p {
+            line-height: 1.7;
+        }
+
+        .steps-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .steps-list li {
+            padding: 12px 0;
+            padding-left: 40px;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .steps-list li:last-child {
+            border-bottom: none;
+        }
+
+        .steps-list li:before {
+            content: counter(step);
+            counter-increment: step;
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 30px;
+            height: 30px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .steps-section ol {
+            counter-reset: step;
+        }
+
+        .expected-findings, .validation-checklist {
+            background: var(--warning-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .analysis-guidance {
+            background: var(--tip-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid var(--success-color);
+        }
+
+        /* Code/Table Styles */
+        .code-block {
+            background: var(--code-bg);
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Roboto Mono', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .scheduling-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .scheduling-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .scheduling-table td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .scheduling-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .scheduling-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        /* Exam Mapping Section */
+        .exam-mapping {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 40px;
+        }
+
+        .exam-mapping h2 {
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+
+        .exam-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .exam-table th {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #e8f5e9;
+        }
+
+        .exam-table td {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .exam-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Success Criteria */
+        .criteria-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .criteria-card {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .criteria-card:hover {
+            border-color: var(--success-color);
+            transform: translateY(-5px);
+        }
+
+        .criteria-card i {
+            font-size: 2.5rem;
+            color: var(--success-color);
+            margin-bottom: 15px;
+        }
+
+        /* Extension Activities */
+        .extensions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .extension-card {
+            background: #f0f7ff;
+            padding: 25px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .extension-card h4 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Key Takeaways */
+        .takeaways-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .takeaway-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            border-top: 5px solid;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .takeaway-card.predictable {
+            border-top-color: var(--primary-color);
+        }
+
+        .takeaway-card.stable {
+            border-top-color: var(--success-color);
+        }
+
+        .takeaway-card.controlled {
+            border-top-color: var(--secondary-color);
+        }
+
+        .takeaway-card h4 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* Footer Actions */
+        .footer-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .action-button {
+            padding: 18px 35px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            flex: 1;
+            max-width: 400px;
+            text-decoration: none;
+        }
+
+        .action-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .download-btn {
+            background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+            color: white;
+        }
+
+        .customize-btn {
+            background: linear-gradient(to right, var(--accent-color), #ff8c00);
+            color: #000;
+        }
+
+        .approve-btn {
+            background: linear-gradient(to right, var(--success-color), #1b5e20);
+            color: white;
+        }
+
+        /* CU Meter */
+        .cu-meter {
+            background: linear-gradient(to right, #4CAF50, #FF9800, #F44336);
+            height: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .cu-marker {
+            position: absolute;
+            top: -5px;
+            width: 2px;
+            height: 20px;
+            background: white;
+            transform: translateX(-50%);
+        }
+
+        .cu-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .metadata-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .footer-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .action-button {
+                max-width: 100%;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .lab-subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .metadata-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .section-title {
+                font-size: 1.6rem;
+            }
+            
+            .content-section, .architecture-section, .exam-mapping {
+                padding: 25px;
+            }
+            
+            .exercise-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .exercise-time {
+                align-self: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-pattern">
+                <svg viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0,0 L400,0 L400,600 L0,600 Z" fill="white"></path>
+                    <circle cx="200" cy="150" r="100" fill="#0078d4" opacity="0.1"></circle>
+                    <rect x="100" y="300" width="200" height="100" fill="#00b294" opacity="0.1"></rect>
+                    <polygon points="200,450 300,550 100,550" fill="#ffb900" opacity="0.1"></polygon>
+                </svg>
+            </div>
+            
+            <div class="header-content">
+                <div class="lab-badge">ARCHITECT-LEVEL LAB</div>
+                <h1>CU-Aware Pipeline Optimization in Microsoft Fabric</h1>
+                <p class="lab-subtitle">Designing and Optimizing Capacity-Aware Data Pipelines for Enterprise Scale</p>
+                
+                <div class="metadata-grid">
+                    <div class="metadata-item">
+                        <div class="metadata-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="metadata-content">
+                            <h3>Target Audience</h3>
+                            <p>Microsoft Fabric Architects & Senior Data Engineers</p>
+                        </div>
+                    </div>
+                    
+                    <div class="metadata-item">
+                        <div class="metadata-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metadata-content">
+                            <h3>Estimated Duration</h3>
+                            <p>120 minutes</p>
+                        </div>
+                    </div>
+                    
+                    <div class="metadata-item">
+                        <div class="metadata-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <div class="metadata-content">
+                            <h3>Certification Alignment</h3>
+                            <p>Microsoft Fabric Architect Exam DP-600</p>
+                        </div>
+                    </div>
+                    
+                    <div class="metadata-item">
+                        <div class="metadata-icon">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                        <div class="metadata-content">
+                            <h3>Difficulty Level</h3>
+                            <p>Advanced (Architect Decision-Making)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-bullseye"></i> Lab Objectives</h2>
+            <p>By the end of this lab, learners will demonstrate architect-level decision-making by optimizing pipeline concurrency without increasing capacity costs.</p>
+            
+            <div class="objectives-grid">
+                <div class="objective-card">
+                    <h3><i class="fas fa-chart-line"></i> Diagnose CU Contention</h3>
+                    <p>Analyze Capacity Unit utilization patterns and identify concurrency-driven spikes in Fabric environment.</p>
+                </div>
+                
+                <div class="objective-card">
+                    <h3><i class="fas fa-project-diagram"></i> Architect CU-Aware Pipelines</h3>
+                    <p>Redesign pipeline architecture using decomposition patterns, dependency orchestration, and staggered scheduling.</p>
+                </div>
+                
+                <div class="objective-card">
+                    <h3><i class="fas fa-cogs"></i> Implement Optimization Strategies</h3>
+                    <p>Apply incremental loading, parallelism control, and compute reuse patterns to reduce CU consumption.</p>
+                </div>
+                
+                <div class="objective-card">
+                    <h3><i class="fas fa-clipboard-check"></i> Validate Improvements</h3>
+                    <p>Compare before/after CU metrics and defend optimization decisions using data-driven evidence.</p>
+                </div>
+                
+                <div class="objective-card">
+                    <h3><i class="fas fa-file-certificate"></i> Apply Exam Logic</h3>
+                    <p>Map lab decisions to Microsoft Fabric Architect exam patterns for concurrency and capacity management.</p>
+                </div>
+                
+                <div class="objective-card">
+                    <h3><i class="fas fa-handshake"></i> Business Justification</h3>
+                    <p>Articulate the business impact of CU optimization in terms of cost, reliability, and performance.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-tools"></i> Prerequisites</h2>
+            <p>Ensure the following before starting the lab:</p>
+            
+            <ul class="prerequisites-list">
+                <li>Active Microsoft Fabric workspace with assigned capacity (minimum F2 SKU)</li>
+                <li>Basic familiarity with Fabric Pipelines, Dataflows, and Notebooks</li>
+                <li>Understanding of Lakehouse vs. Warehouse architectural decisions</li>
+                <li>Experience with incremental vs. full data refresh patterns</li>
+                <li>Read access to Fabric capacity metrics and monitoring</li>
+                <li>Power BI workspace for validation (optional but recommended)</li>
+                <li>Sample data ingestion configured (provided in lab environment)</li>
+            </ul>
+            
+            <div class="scenario-box">
+                <h3><i class="fas fa-exclamation-triangle"></i> Critical Pre-Lab Check</h3>
+                <p>Verify your lab environment has at least 10 sample pipelines running concurrently at 02:00 daily. These pipelines should demonstrate the CU contention patterns we'll be optimizing.</p>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-building"></i> Scenario Overview</h2>
+            
+            <div class="scenario-box">
+                <h3><i class="fas fa-user-tie"></i> Your Role</h3>
+                <p>You are a Fabric Architect for <strong>Global Retail Analytics Inc.</strong>, responsible for optimizing a multinational data platform serving 500+ business users across 15 countries.</p>
+            </div>
+            
+            <h3 style="color: var(--primary-dark); margin: 25px 0 15px; font-size: 1.4rem;"><i class="fas fa-fire"></i> Current Challenges</h3>
+            <ul class="challenge-list">
+                <li><strong>Multiple ingestion and transformation pipelines</strong> start simultaneously at 02:00 daily</li>
+                <li><strong>CU usage peaks sharply</strong> at pipeline start time, reaching 95%+ capacity</li>
+                <li><strong>Several pipelines fail intermittently</strong> due to resource contention</li>
+                <li><strong>Business users report dashboard unavailability</strong> during morning business hours</li>
+                <li><strong>Cost overruns</strong> predicted if capacity is scaled without optimization</li>
+                <li><strong>No visibility</strong> into pipeline dependencies or execution sequencing</li>
+            </ul>
+            
+            <div class="scenario-box">
+                <h3><i class="fas fa-tasks"></i> Your Mission</h3>
+                <p>Optimize the Fabric environment to eliminate pipeline failures and ensure stable dashboard availability <strong>without increasing capacity costs</strong>. You must achieve this through architectural redesign, not capacity scaling.</p>
+            </div>
+        </section>
+
+        <section class="architecture-section">
+            <div class="architecture-header">
+                <h2><i class="fas fa-sitemap"></i> Lab Architecture: Initial State</h2>
+                <div class="phase-tag">PRE-OPTIMIZATION</div>
+            </div>
+            
+            <div class="architecture-grid">
+                <div class="architecture-card">
+                    <h3><i class="fas fa-stream"></i> Pipeline Landscape</h3>
+                    <ul>
+                        <li>10+ parallel ingestion pipelines</li>
+                        <li>All pipelines start at 02:00 simultaneously</li>
+                        <li>No dependencies between pipelines</li>
+                        <li>Each pipeline runs for 45-90 minutes</li>
+                        <li>Zero orchestration coordination</li>
+                    </ul>
+                </div>
+                
+                <div class="architecture-card">
+                    <h3><i class="fas fa-microchip"></i> Pipeline Activities</h3>
+                    <ul>
+                        <li><strong>Ingestion:</strong> Read from source systems</li>
+                        <li><strong>Transformation:</strong> Heavy data processing</li>
+                        <li><strong>Aggregation:</strong> Compute business metrics</li>
+                        <li><strong>Publish:</strong> Write to Lakehouse/Warehouse</li>
+                    </ul>
+                </div>
+                
+                <div class="architecture-card">
+                    <h3><i class="fas fa-chart-bar"></i> Capacity Impact</h3>
+                    <ul>
+                        <li>Peak CU: 95% at 02:00-03:00</li>
+                        <li>Average CU: 25-30% outside peaks</li>
+                        <li>Pipeline failure rate: 15-20%</li>
+                        <li>Dashboard latency: 15+ seconds during peaks</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- CU Meter Visualization -->
+            <div style="margin-top: 40px; background: rgba(0,0,0,0.2); padding: 25px; border-radius: 12px;">
+                <h3 style="color: white; margin-bottom: 20px;"><i class="fas fa-tachometer-alt"></i> Current CU Utilization Pattern</h3>
+                <div class="cu-meter">
+                    <div class="cu-marker" style="left: 10%;"></div>
+                    <div class="cu-marker" style="left: 20%;"></div>
+                    <div class="cu-marker" style="left: 30%;"></div>
+                    <div class="cu-marker" style="left: 40%;"></div>
+                    <div class="cu-marker" style="left: 50%;"></div>
+                    <div class="cu-marker" style="left: 60%;"></div>
+                    <div class="cu-marker" style="left: 70%;"></div>
+                    <div class="cu-marker" style="left: 80%;"></div>
+                    <div class="cu-marker" style="left: 90%;"></div>
+                    <div class="cu-marker" style="left: 95%; background: #FF5252; height: 25px; top: -10px;"></div>
+                </div>
+                <div class="cu-labels">
+                    <span>00:00</span>
+                    <span>02:00 (Peak)</span>
+                    <span>06:00</span>
+                    <span>12:00</span>
+                    <span>18:00</span>
+                    <span>23:59</span>
+                </div>
+                <p style="color: rgba(255,255,255,0.8); margin-top: 15px; font-size: 0.9rem;">
+                    <i class="fas fa-info-circle"></i> Critical CU spike at 02:00 when all 10+ pipelines start simultaneously
+                </p>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-dumbbell"></i> Lab Exercises</h2>
+            <p>Seven structured exercises guiding you from problem identification to validated optimization.</p>
+            
+            <div class="exercises-container">
+                <!-- Exercise 1 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">1</div>
+                            <h3>Identify CU Contention Patterns</h3>
+                        </div>
+                        <div class="exercise-time">20 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Review Fabric capacity metrics and pipeline schedules to identify CU contention patterns and alignment issues.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Steps</h4>
+                            <ol class="steps-list">
+                                <li>Navigate to <strong>Microsoft Fabric Admin Portal</strong> → Capacity Metrics</li>
+                                <li>Select your capacity and set time range to <strong>Last 7 days</strong></li>
+                                <li>Observe CU utilization graph, noting:
+                                    <ul style="margin-top: 10px; padding-left: 20px;">
+                                        <li>Peak CU values and their timing</li>
+                                        <li>Duration of high utilization periods</li>
+                                        <li>Correlation with business hours</li>
+                                    </ul>
+                                </li>
+                                <li>Navigate to <strong>Fabric Pipelines</strong> and review all scheduled pipelines</li>
+                                <li>Document start times, durations, and success rates</li>
+                                <li>Compare pipeline schedules with CU utilization peaks</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-clipboard-check"></i> Expected Findings</h4>
+                            <div class="expected-findings">
+                                <ul>
+                                    <li>Sharp CU spikes consistently at <strong>02:00 daily</strong></li>
+                                    <li>Peak utilization reaches <strong>90-95%</strong> of capacity</li>
+                                    <li>Pipeline failures correlate with maximum CU usage periods</li>
+                                    <li>All 10+ pipelines share identical 02:00 start time</li>
+                                    <li>No pipelines scheduled during low-utilization periods</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Reflection Question</h4>
+                            <p><strong>Are CU spikes sustained or short-lived?</strong> What does the spike duration indicate about the nature of the workload? How would sustained vs. short spikes influence your optimization strategy?</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 2 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">2</div>
+                            <h3>Diagnose Root Cause</h3>
+                        </div>
+                        <div class="exercise-time">15 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Determine the primary cause of CU saturation and pipeline failures through systematic analysis.</p>
+                        </div>
+                        
+                        <div class="analysis-guidance">
+                            <h4><i class="fas fa-search"></i> Analysis Guidance</h4>
+                            <p>Evaluate these dimensions to identify the root cause:</p>
+                            <ul>
+                                <li><strong>Concurrency Level:</strong> Number of pipelines running simultaneously</li>
+                                <li><strong>Pipeline Design:</strong> Activity parallelism within each pipeline</li>
+                                <li><strong>Workload Overlap:</strong> Batch vs. interactive workload interference</li>
+                                <li><strong>Data Volume:</strong> Amount of data processed during peak periods</li>
+                                <li><strong>Transformation Complexity:</strong> Compute intensity of transformations</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-diagnoses"></i> Expected Diagnosis</h4>
+                            <div class="expected-findings" style="border-left-color: var(--danger-color);">
+                                <p><strong>Primary Root Cause:</strong> Excessive concurrency from synchronized pipeline execution</p>
+                                <p><strong>Supporting Evidence:</strong></p>
+                                <ul>
+                                    <li>All pipelines start at same time = maximum concurrency</li>
+                                    <li>Heavy transformations overlap = CU contention</li>
+                                    <li>No dependencies = no natural staggering</li>
+                                    <li>Transformation phases align = additive CU load</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Architect Insight</h4>
+                            <p><strong>Why is concurrency the primary issue rather than individual pipeline performance?</strong> Consider that total CU capacity is fixed. Even if each pipeline is optimized, concurrent execution still exceeds available capacity.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 3 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">3</div>
+                            <h3>Redesign for CU Awareness</h3>
+                        </div>
+                        <div class="exercise-time">30 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Redesign the pipeline architecture using CU-aware principles to eliminate concurrent resource contention.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Required Architecture Changes</h4>
+                            <ol class="steps-list">
+                                <li><strong>Pipeline Decomposition</strong> - Split each monolithic pipeline into specialized pipelines:
+                                    <ul style="margin-top: 10px; padding-left: 20px;">
+                                        <li><strong>Pipeline A:</strong> Ingestion only (low CU)</li>
+                                        <li><strong>Pipeline B:</strong> Transformation only (medium CU)</li>
+                                        <li><strong>Pipeline C:</strong> Aggregation & Publish (medium CU)</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Dependency Orchestration</strong> - Establish execution dependencies:
+                                    <div class="code-block">
+                                        # Logical Dependency Flow<br>
+                                        Ingestion → Transformation → Aggregation<br>
+                                        # No Transformation starts before Ingestion completes<br>
+                                        # No Aggregation starts before Transformation completes
+                                    </div>
+                                </li>
+                                <li><strong>Resource Segmentation</strong> - Group pipelines by resource requirements</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-project-diagram"></i> Deliverable</h4>
+                            <p>Create an updated pipeline architecture diagram showing:</p>
+                            <ul>
+                                <li>Decomposed pipeline structure (A/B/C separation)</li>
+                                <li>Dependency arrows between pipeline types</li>
+                                <li>CU allocation estimates per pipeline type</li>
+                                <li>Execution time windows for each pipeline group</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Design Principle</h4>
+                            <p><strong>Why decompose pipelines?</strong> Smaller, specialized pipelines enable finer-grained scheduling control, better error isolation, and more predictable CU consumption. This aligns with the microservices principle applied to data pipelines.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 4 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">4</div>
+                            <h3>Schedule Staggering</h3>
+                        </div>
+                        <div class="exercise-time">20 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Design and implement staggered schedules to distribute CU load across time, eliminating peak contention.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Staggering Strategy</h4>
+                            <table class="scheduling-table">
+                                <thead>
+                                    <tr>
+                                        <th>Pipeline Type</th>
+                                        <th>Schedule Strategy</th>
+                                        <th>CU Impact</th>
+                                        <th>Business Rationale</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Ingestion</strong></td>
+                                        <td>Frequent, low-CU windows (every 15 mins)</td>
+                                        <td>Low (5-10 CU)</td>
+                                        <td>Fresh data available for transformations</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Transformation</strong></td>
+                                        <td>Staggered, off-peak (02:15, 02:30, 02:45...)</td>
+                                        <td>Medium (15-25 CU)</td>
+                                        <td>Avoid CU overlap, ensure completion before business hours</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Aggregation</strong></td>
+                                        <td>Post-transformation (03:00 onwards)</td>
+                                        <td>Medium (10-20 CU)</td>
+                                        <td>Consume transformed data, publish before 06:00</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-exclamation-circle"></i> Key Rule</h4>
+                            <div class="expected-findings">
+                                <p><strong>No two heavy transformation pipelines should start simultaneously.</strong></p>
+                                <p>Implement at least 15-minute gaps between transformation pipeline start times to ensure CU capacity is never exceeded.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Optimization Trade-off</h4>
+                            <p><strong>What is sacrificed with staggering?</strong> Some data freshness is traded for reliability. Ingestion runs frequently, but transformations are staggered. This is acceptable because business users need reliable morning dashboards more than 15-minute data freshness at 02:00.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 5 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">5</div>
+                            <h3>Optimize Compute Usage</h3>
+                        </div>
+                        <div class="exercise-time">15 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Reduce unnecessary CU consumption within individual pipelines through compute optimization techniques.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Optimization Actions</h4>
+                            <ol class="steps-list">
+                                <li><strong>Replace full refresh with incremental loads</strong>
+                                    <div class="code-block">
+                                        # BEFORE: Full refresh (high CU)<br>
+                                        TRUNCATE TABLE sales_fact;<br>
+                                        INSERT INTO sales_fact SELECT * FROM source;<br><br>
+                                        # AFTER: Incremental load (low CU)<br>
+                                        MERGE sales_fact AS target<br>
+                                        USING source AS source<br>
+                                        ON target.id = source.id<br>
+                                        WHEN MATCHED THEN UPDATE ...<br>
+                                        WHEN NOT MATCHED THEN INSERT ...
+                                    </div>
+                                </li>
+                                <li><strong>Reduce transformation parallelism</strong> - Limit concurrent activities within pipelines</li>
+                                <li><strong>Reuse intermediate outputs</strong> - Cache transformation results for downstream consumption</li>
+                                <li><strong>Implement data pruning</strong> - Remove unnecessary historical data from processing</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-chart-line"></i> Expected Outcome</h4>
+                            <div class="expected-findings">
+                                <ul>
+                                    <li><strong>60-70% reduction</strong> in data scanned per pipeline run</li>
+                                    <li><strong>40-50% reduction</strong> in CU consumption per pipeline</li>
+                                    <li><strong>Faster execution</strong> due to smaller data volumes</li>
+                                    <li><strong>Lower storage costs</strong> from incremental processing</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> CU Impact Analysis</h4>
+                            <p><strong>Which optimization provides the biggest CU reduction?</strong> Incremental loading typically provides the largest CU savings because it reduces the data volume processed. However, staggering provides the most immediate reliability improvement by eliminating contention.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 6 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">6</div>
+                            <h3>Validate Improvements</h3>
+                        </div>
+                        <div class="exercise-time">15 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Compare CU usage before and after optimization to validate improvements and quantify business impact.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Validation Process</h4>
+                            <ol class="steps-list">
+                                <li>Return to <strong>Fabric Capacity Metrics</strong></li>
+                                <li>Compare CU graphs from before optimization (baseline) with after optimization</li>
+                                <li>Document key metrics in a comparison table</li>
+                                <li>Analyze pipeline success rates before/after</li>
+                                <li>Survey dashboard performance during morning hours</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-clipboard-list"></i> Validation Checklist</h4>
+                            <div class="validation-checklist">
+                                <ul>
+                                    <li><input type="checkbox"> Peak CU reduced from 95% to ≤ 70%</li>
+                                    <li><input type="checkbox"> Pipeline failure rate reduced from 20% to ≤ 2%</li>
+                                    <li><input type="checkbox"> Dashboard availability during business hours ≥ 99.9%</li>
+                                    <li><input type="checkbox"> No new capacity purchased (cost containment)</li>
+                                    <li><input type="checkbox"> Business user complaints resolved</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Reflection Question</h4>
+                            <p><strong>Did total pipeline runtime increase with staggering?</strong> Likely yes - because pipelines now run sequentially rather than concurrently. <strong>Why is this acceptable?</strong> Because reliability and cost predictability are more important than absolute speed for batch processing. Business users need dashboards available at 08:00, not necessarily that all processing finishes by 03:00.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exercise 7 -->
+                <div class="exercise-card">
+                    <div class="exercise-header">
+                        <div class="exercise-title">
+                            <div class="exercise-number">7</div>
+                            <h3>Exam Mapping & Decision Logic</h3>
+                        </div>
+                        <div class="exercise-time">10 mins</div>
+                    </div>
+                    <div class="exercise-content">
+                        <div class="task-section">
+                            <h4><i class="fas fa-tasks"></i> Task</h4>
+                            <p>Map lab exercises to Microsoft Fabric Architect exam concepts and internalize the decision logic for CU optimization scenarios.</p>
+                        </div>
+                        
+                        <div class="steps-section">
+                            <h4><i class="fas fa-footsteps"></i> Exam Alignment Matrix</h4>
+                            <table class="scheduling-table">
+                                <thead>
+                                    <tr>
+                                        <th>Lab Action</th>
+                                        <th>Exam Concept</th>
+                                        <th>Decision Logic</th>
+                                        <th>Priority Order</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Stagger schedules</td>
+                                        <td>CU contention mitigation</td>
+                                        <td>Reduce concurrency before scaling</td>
+                                        <td>#1 - First action</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Split pipelines</td>
+                                        <td>Fault isolation & CU efficiency</td>
+                                        <td>Smaller units = better control</td>
+                                        <td>#2 - Architectural</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Establish dependencies</td>
+                                        <td>Concurrency control</td>
+                                        <td>Natural staggering through dependencies</td>
+                                        <td>#3 - Orchestration</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Incremental load</td>
+                                        <td>Compute optimization</td>
+                                        <td>Reduce data volume processed</td>
+                                        <td>#4 - Optimization</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Monitor & validate</td>
+                                        <td>Continuous improvement</td>
+                                        <td>Data-driven decision making</td>
+                                        <td>#5 - Validation</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="expected-section">
+                            <h4><i class="fas fa-gavel"></i> Key Exam Rule</h4>
+                            <div class="expected-findings" style="border-left-color: var(--success-color);">
+                                <p><strong>Fix concurrency first. Scale capacity last.</strong></p>
+                                <p>Microsoft Fabric Architect exam expects you to optimize existing capacity before recommending capacity increases. Concurrency management is always the first solution for CU contention.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="reflection-section">
+                            <h4><i class="fas fa-brain"></i> Exam Strategy</h4>
+                            <p><strong>How to approach CU questions on the exam?</strong> First identify if the problem is concurrency (multiple things running at once) or compute intensity (one thing using too much). For concurrency: stagger schedules. For compute intensity: optimize the workload. Only scale capacity if both are already optimized.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="exam-mapping">
+            <h2><i class="fas fa-certificate"></i> Microsoft Fabric Architect Exam Alignment</h2>
+            <p style="color: rgba(255,255,255,0.9); margin-bottom: 30px;">This lab directly prepares you for specific exam objectives in the DP-600: Microsoft Fabric Architect certification.</p>
+            
+            <table class="exam-table">
+                <thead>
+                    <tr>
+                        <th>Exam Objective</th>
+                        <th>Lab Exercise</th>
+                        <th>Weight on Exam</th>
+                        <th>Key Takeaway</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Design for cost optimization</td>
+                        <td>Exercises 3, 4, 5</td>
+                        <td>15-20%</td>
+                        <td>CU awareness = cost control</td>
+                    </tr>
+                    <tr>
+                        <td>Optimize performance and reliability</td>
+                        <td>Exercises 1, 2, 6</td>
+                        <td>20-25%</td>
+                        <td>Staggering = reliability</td>
+                    </tr>
+                    <tr>
+                        <td>Implement monitoring and validation</td>
+                        <td>Exercise 6</td>
+                        <td>10-15%</td>
+                        <td>Metrics before decisions</td>
+                    </tr>
+                    <tr>
+                        <td>Design pipeline orchestration</td>
+                        <td>Exercises 3, 4</td>
+                        <td>15-20%</td>
+                        <td>Dependencies control flow</td>
+                    </tr>
+                    <tr>
+                        <td>Recommend capacity solutions</td>
+                        <td>All exercises</td>
+                        <td>10-15%</td>
+                        <td>Optimize first, scale last</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-flag-checkered"></i> Success Criteria</h2>
+            <p>Learners have successfully completed the lab if they can demonstrate architect-level competency in these areas:</p>
+            
+            <div class="criteria-grid">
+                <div class="criteria-card">
+                    <i class="fas fa-chart-bar"></i>
+                    <h4>Diagnostic Accuracy</h4>
+                    <p>Accurately identify CU contention patterns and root causes using Fabric metrics and monitoring tools.</p>
+                </div>
+                
+                <div class="criteria-card">
+                    <i class="fas fa-archway"></i>
+                    <h4>Architectural Decision-Making</h4>
+                    <p>Justify pipeline decomposition, dependency orchestration, and scheduling decisions with business impact reasoning.</p>
+                </div>
+                
+                <div class="criteria-card">
+                    <i class="fas fa-dollar-sign"></i>
+                    <h4>Cost Containment</h4>
+                    <p>Articulate why capacity scaling was avoided and how CU optimization delivers equivalent reliability at lower cost.</p>
+                </div>
+                
+                <div class="criteria-card">
+                    <i class="fas fa-file-alt"></i>
+                    <h4>Exam Readiness</h4>
+                    <p>Apply the "fix concurrency first, scale capacity last" decision logic to new CU optimization scenarios.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-rocket"></i> Optional Extension Activities</h2>
+            <p>For advanced learners or extended lab sessions, explore these additional challenges:</p>
+            
+            <div class="extensions-grid">
+                <div class="extension-card">
+                    <h4><i class="fas fa-tv"></i> Interactive Dashboard Load</h4>
+                    <p>Introduce simulated interactive Power BI dashboard queries during business hours (09:00-17:00). Re-optimize pipeline schedules to avoid contention with interactive workloads while maintaining data freshness.</p>
+                </div>
+                
+                <div class="extension-card">
+                    <h4><i class="fas fa-chart-line"></i> Data Growth Simulation</h4>
+                    <p>Simulate 40% year-over-year data growth. Reassess CU impact and determine when capacity scaling becomes unavoidable vs. further optimization possibilities.</p>
+                </div>
+                
+                <div class="extension-card">
+                    <h4><i class="fas fa-file-contract"></i> Exam-Style Recommendation</h4>
+                    <p>Create a one-page executive summary recommending CU optimization strategy to business stakeholders, including cost savings, risk reduction, and implementation timeline.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2 class="section-title"><i class="fas fa-lightbulb"></i> Architect Takeaway</h2>
+            <p class="lab-subtitle" style="color: var(--primary-dark); font-size: 1.3rem; margin-bottom: 30px;">
+                <i class="fas fa-quote-left"></i> CU-aware optimization is about <strong>when</strong> workloads run, not just <strong>how fast</strong> they run.
+            </p>
+            
+            <div class="takeaways-grid">
+                <div class="takeaway-card predictable">
+                    <h4><i class="fas fa-calendar-alt"></i> Predictable Concurrency</h4>
+                    <p>A Fabric Architect designs systems where workload timing is controlled and predictable, not left to chance. Concurrency is managed through orchestration, not coincidence.</p>
+                </div>
+                
+                <div class="takeaway-card stable">
+                    <h4><i class="fas fa-shield-alt"></i> Stable Performance</h4>
+                    <p>Stability is more valuable than speed for enterprise systems. Reliable morning dashboards beat fast-but-unreliable midnight processing for business impact.</p>
+                </div>
+                
+                <div class="takeaway-card controlled">
+                    <h4><i class="fas fa-hand-holding-usd"></i> Controlled Cost</h4>
+                    <p>Capacity Unit optimization is the primary lever for cost control in Fabric. Architectural decisions that reduce CU consumption directly translate to lower cloud spend.</p>
+                </div>
+            </div>
+            
+            <div style="background: var(--light-bg); padding: 25px; border-radius: 12px; margin-top: 30px; border-left: 4px solid var(--accent-color);">
+                <h4 style="color: var(--primary-dark); margin-bottom: 15px;"><i class="fas fa-graduation-cap"></i> Certification Insight</h4>
+                <p>The Microsoft Fabric Architect exam tests your ability to make <strong>architectural decisions that balance performance, cost, and reliability</strong>. This lab has prepared you for the CU optimization scenarios that appear consistently in the exam. Remember: <strong>Optimize first, scale last.</strong></p>
+            </div>
+        </section>
+
+        <section class="content-section" style="text-align: center; background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%); color: white;">
+            <div style="padding: 40px;">
+                <h2 style="color: white; font-size: 2.5rem; margin-bottom: 20px;"><i class="fas fa-flag"></i> End of Lab</h2>
+                <p style="font-size: 1.2rem; opacity: 0.9; margin-bottom: 30px; max-width: 800px; margin-left: auto; margin-right: auto;">
+                    You have completed the CU-Aware Pipeline Optimization lab. You are now prepared to architect Microsoft Fabric solutions that balance performance, cost, and reliability through intelligent capacity management.
+                </p>
+                <div style="display: inline-flex; gap: 15px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 12px; backdrop-filter: blur(10px);">
+                    <div style="text-align: center; padding: 15px;">
+                        <div style="font-size: 2rem; font-weight: 800;">120</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">Minutes</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px;">
+                        <div style="font-size: 2rem; font-weight: 800;">7</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">Exercises</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px;">
+                        <div style="font-size: 2rem; font-weight: 800;">95%</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">CU Reduction</div>
+                    </div>
+                    <div style="text-align: center; padding: 15px;">
+                        <div style="font-size: 2rem; font-weight: 800;">DP-600</div>
+                        <div style="font-size: 0.9rem; opacity: 0.8;">Exam Ready</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="footer-actions">
+            <button class="action-button download-btn" id="downloadLab">
+                <i class="fas fa-download"></i> Download Lab Guide (PDF)
+            </button>
+            
+            <button class="action-button customize-btn" id="customizeLab">
+                <i class="fas fa-edit"></i> Request Lab Customization
+            </button>
+            
+            <button class="action-button approve-btn" id="approveLab">
+                <i class="fas fa-check-double"></i> Approve for Training
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Download Lab Guide
+            document.getElementById('downloadLab').addEventListener('click', function() {
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.8);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                `;
+                
+                modal.innerHTML = `
+                    <div style="background: white; padding: 40px; border-radius: 16px; max-width: 600px; width: 90%;">
+                        <h2 style="color: #005a9e; margin-bottom: 25px; font-size: 1.8rem;">Download Lab Materials</h2>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                            <div style="padding: 25px; border: 2px solid #e1e8f0; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s;" onclick="downloadLabItem('complete')">
+                                <i class="fas fa-file-pdf" style="font-size: 2.5rem; color: #0078d4; margin-bottom: 15px;"></i>
+                                <h4 style="color: #005a9e; margin-bottom: 10px;">Complete Lab Guide</h4>
+                                <p style="font-size: 0.9rem; color: #666;">PDF with all exercises + solutions</p>
+                            </div>
+                            <div style="padding: 25px; border: 2px solid #e1e8f0; border-radius: 12px; text-align: center; cursor: pointer; transition: all 0.3s;" onclick="downloadLabItem('instructor')">
+                                <i class="fas fa-chalkboard-teacher" style="font-size: 2.5rem; color: #4CAF50; margin-bottom: 15px;"></i>
+                                <h4 style="color: #005a9e; margin-bottom: 10px;">Instructor Kit</h4>
+                                <p style="font-size: 0.9rem; color: #666;">Slides + evaluation rubrics</p>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 25px; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                            <h4 style="color: #005a9e; margin-bottom: 10px;"><i class="fas fa-download"></i> Also Available</h4>
+                            <p style="font-size: 0.9rem; color: #666;">Sample pipeline templates, CU monitoring dashboards, and validation scripts.</p>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <button id="printLab" style="padding: 12px 25px; background: #607D8B; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-print"></i> Print Lab
+                            </button>
+                            <button id="closeLabModal" style="padding: 12px 25px; background: #0078d4; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Close</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                window.downloadLabItem = function(type) {
+                    if (type === 'complete') {
+                        alert('Complete lab guide download started. Includes all 7 exercises, sample solutions, and architecture templates.');
+                    } else {
+                        alert('Instructor kit download started. Includes PowerPoint slides, evaluation rubrics, and teaching notes.');
+                    }
+                };
+                
+                document.getElementById('printLab').addEventListener('click', function() {
+                    window.print();
+                });
+                
+                document.getElementById('closeLabModal').addEventListener('click', function() {
+                    document.body.removeChild(modal);
+                });
+                
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                    }
+                });
+            });
+            
+            // Customize Lab
+            document.getElementById('customizeLab').addEventListener('click', function() {
+                const orgName = prompt('Enter your organization name for lab customization:');
+                if (orgName) {
+                    const labFocus = prompt('Select focus areas (comma-separated):\n1. Certification Prep\n2. Internal Training\n3. Hiring Assessment\n4. All');
+                    const participants = prompt('Estimated number of participants:');
+                    
+                    alert(`Lab customization request submitted for ${orgName}.\nFocus: ${labFocus}\nParticipants: ${participants}\n\nOur training team will contact you within 24 hours with customized options.`);
+                    
+                    // Update visual feedback
+                    const badge = document.querySelector('.lab-badge');
+                    badge.textContent = 'CUSTOMIZATION REQUESTED';
+                    badge.style.background = 'linear-gradient(to right, #ffb900, #ff8c00)';
+                }
+            });
+            
+            // Approve Lab
+            document.getElementById('approveLab').addEventListener('click', function() {
+                if (confirm('Approve this lab for training deployment across the organization?')) {
+                    alert('Lab approved! Added to Microsoft Fabric Architect training curriculum. Deployment scheduled for next quarter.');
+                    
+                    const badge = document.querySelector('.lab-badge');
+                    badge.textContent = 'APPROVED FOR TRAINING';
+                    badge.style.background = 'linear-gradient(to right, #4CAF50, #2E7D32)';
+                    
+                    // Update button state
+                    const approveBtn = document.getElementById('approveLab');
+                    approveBtn.innerHTML = '<i class="fas fa-check-double"></i> Lab Approved';
+                    approveBtn.style.background = 'linear-gradient(to right, #2E7D32, #1B5E20)';
+                    approveBtn.disabled = true;
+                    
+                    // Show success message
+                    const successMsg = document.createElement('div');
+                    successMsg.innerHTML = `
+                        <div style="background: linear-gradient(to right, #4CAF50, #2E7D32); color: white; padding: 20px; border-radius: 12px; margin-top: 30px; text-align: center;">
+                            <h3 style="margin-bottom: 10px;"><i class="fas fa-check-circle"></i> Lab Approved for Training</h3>
+                            <p>The CU-Aware Pipeline Optimization lab has been approved and added to the Microsoft Fabric Architect training curriculum. Estimated training impact: 200+ architects annually.</p>
+                        </div>
+                    `;
+                    document.querySelector('.footer-actions').parentNode.insertBefore(successMsg, document.querySelector('.footer-actions'));
+                }
+            });
+            
+            // Add interactive checkboxes
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('click', function() {
+                    if (this.checked) {
+                        this.parentElement.style.textDecoration = 'line-through';
+                        this.parentElement.style.opacity = '0.7';
+                    } else {
+                        this.parentElement.style.textDecoration = 'none';
+                        this.parentElement.style.opacity = '1';
+                    }
+                });
+            });
+            
+            // Add CU meter animation
+            const cuMeter = document.querySelector('.cu-meter');
+            if (cuMeter) {
+                let currentWidth = 0;
+                const animateMeter = () => {
+                    if (currentWidth <= 95) {
+                        cuMeter.style.background = `linear-gradient(to right, #4CAF50 ${currentWidth}%, #FF9800 ${currentWidth}%, #F44336 100%)`;
+                        currentWidth += 5;
+                        setTimeout(animateMeter, 100);
+                    }
+                };
+                setTimeout(animateMeter, 1000);
+            }
+            
+            // Add exercise navigation
+            const exerciseCards = document.querySelectorAll('.exercise-card');
+            exerciseCards.forEach((card, index) => {
+                card.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('exercise-card') || 
+                        e.target.classList.contains('exercise-header') ||
+                        e.target.classList.contains('exercise-title')) {
+                        this.classList.toggle('expanded');
+                    }
+                });
+            });
+            
+            // Print styles
+            const style = document.createElement('style');
+            style.textContent = `
+                @media print {
+                    body {
+                        background: white !important;
+                        color: black !important;
+                        font-size: 12pt !important;
+                    }
+                    
+                    header, .content-section, .architecture-section, .exam-mapping, .exercise-card {
+                        break-inside: avoid;
+                        page-break-inside: avoid;
+                        box-shadow: none !important;
+                        border: 1px solid #ddd !important;
+                    }
+                    
+                    .action-button, .exercise-time, .lab-badge {
+                        display: none !important;
+                    }
+                    
+                    .cu-meter {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    
+                    h1 {
+                        font-size: 24pt !important;
+                    }
+                    
+                    h2 {
+                        font-size: 18pt !important;
+                    }
+                    
+                    .exercise-card {
+                        margin-bottom: 20pt !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html>
